@@ -15,6 +15,9 @@ import styles from './Chat.module.css'
 import Contoso from '../../assets/Contoso.svg'
 import { XSSAllowTags } from '../../constants/sanatizeAllowables'
 
+
+
+
 import {
   ChatMessage,
   ConversationRequest,
@@ -34,7 +37,9 @@ import {
   ExecResults,
 } from "../../api";
 import { Answer } from "../../components/Answer";
+
 import { QuestionInput } from "../../components/QuestionInput";
+
 import { ChatHistoryPanel } from "../../components/ChatHistory/ChatHistoryPanel";
 import { AppStateContext } from "../../state/AppProvider";
 import { useBoolean } from "@fluentui/react-hooks";
@@ -44,6 +49,9 @@ const enum messageStatus {
   Processing = 'Processing',
   Done = 'Done'
 }
+
+
+
 
 const Chat = () => {
   const appStateContext = useContext(AppStateContext)
@@ -65,6 +73,33 @@ const Chat = () => {
   const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
   const [logo, setLogo] = useState('')
   const [answerId, setAnswerId] = useState<string>('')
+
+  const [userInput, setUserInput] = useState("");
+
+  const defaultPrompts = [
+  "What is the IOM s policy on remote work and hybrid schedules?",
+  "How do I apply for parental leave, and what are the entitlements?",
+  "What are the procedures for reporting workplace harassment or discrimination?",
+  "Can you explain how performance reviews work at IOM?",
+  "How is paid time off (PTO) calculated and tracked?",
+  "How do vacation policies differ between offices in different countries?",
+  "What are the local public holidays for employees based in Valencia?",
+  "Am I eligible for relocation assistance if I move to a different country office?",
+  "What learning and development programs are available?",
+  "How does internal mobility and job rotation work in this organization?",
+  "How do I update my emergency contact information?",
+  "What documents do I need to submit when requesting a leave of absence?",
+  "What is the code of conduct, and how is it enforced?",
+  "What’s the whistleblower policy, and is it anonymous?",
+];
+
+
+
+
+
+
+
+
 
   const errorDialogContentProps = {
     type: DialogType.close,
@@ -757,8 +792,22 @@ const Chat = () => {
     )
   }
 
+  useEffect(() => {
+  const handler = (e: CustomEvent) => {
+    setUserInput(e.detail); // or however your input is managed
+  };
+  window.addEventListener("SuggestedPromptSelected", handler as EventListener);
+  return () => window.removeEventListener("SuggestedPromptSelected", handler as EventListener);
+  }, []);
+
   return (
+
     <div className={styles.container} role="main">
+
+
+ 
+
+
       {showAuthMessage ? (
         <Stack className={styles.chatEmptyState}>
           <ShieldLockRegular
@@ -794,6 +843,51 @@ const Chat = () => {
                 <img src={logo} className={styles.chatIcon} aria-hidden="true" />
                 <h1 className={styles.chatEmptyStateTitle}>{ui?.chat_title}</h1>
                 <h2 className={styles.chatEmptyStateSubtitle}>{ui?.chat_description}</h2>
+
+                <Stack tokens={{ childrenGap: 10 }}>
+                  <h3 className={styles.chatEmptyStateSubtitle}>Try one of these questions:</h3>
+                  <Stack horizontal wrap tokens={{ childrenGap: 8 }}>
+                    {[
+                      "What is the IOM s policy on remote work and hybrid schedules?",
+                      "How do I apply for parental leave, and what are the entitlements?",
+                      "What are the procedures for reporting workplace harassment or discrimination?",
+                      "Can you explain how performance reviews work at IOM?",
+                      "How is paid time off (PTO) calculated and tracked?",
+                      "How do vacation policies differ between offices in different countries?",
+                      "What are the local public holidays for employees based in Valencia?",
+                      "Am I eligible for relocation assistance if I move to a different country office?",
+                      "What learning and development programs are available?",
+                      "How does internal mobility and job rotation work in this organization?",
+                      "How do I update my emergency contact information?",
+                      "What documents do I need to submit when requesting a leave of absence?",
+                      "What is the code of conduct, and how is it enforced?",
+                      "What’s the whistleblower policy, and is it anonymous?"
+                    ].map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        style={{
+                          padding: '15px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: '#f3f3f3',
+                          border: '1px solid #ccc',
+                          cursor: 'pointer',
+                          fontSize: '0.975rem'
+                        }}
+                        onClick={() => {
+                          document.querySelector("textarea")?.focus(); // Optional: Focus input
+                          const evt = new CustomEvent("SuggestedPromptSelected", { detail: prompt });
+                          window.dispatchEvent(evt);
+                        }}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </Stack>
+                </Stack>
+
+
+
+
               </Stack>
             ) : (
               <div className={styles.chatMessageStream} style={{ marginBottom: isLoading ? '40px' : '0px' }} role="log">
@@ -933,16 +1027,21 @@ const Chat = () => {
               </Stack>
               <QuestionInput
                 clearOnSend
-                placeholder="Type a new question..."
+                placeholder="Use one of the questions above or type any new question..."
                 disabled={isLoading}
-                onSend={(question, id) => {
-                  appStateContext?.state.isCosmosDBAvailable?.cosmosDB
-                    ? makeApiRequestWithCosmosDB(question, id)
-                    : makeApiRequestWithoutCosmosDB(question, id)
+                onSend={(question: ChatMessage["content"], id?: string) => {
+
+                  if (appStateContext?.state.isCosmosDBAvailable?.cosmosDB) {
+                    makeApiRequestWithCosmosDB(question, id);
+                  } else {
+                    makeApiRequestWithoutCosmosDB(question, id);
+                  }
+                  setUserInput(''); // Clear input after sending
                 }}
-                conversationId={
-                  appStateContext?.state.currentChat?.id ? appStateContext?.state.currentChat?.id : undefined
-                }
+                value={userInput}
+                setValue={setUserInput}
+                conversationId={appStateContext?.state.currentChat?.id ?? undefined}
+
               />
             </Stack>
           </div>
@@ -1036,6 +1135,7 @@ const Chat = () => {
             appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <ChatHistoryPanel />}
         </Stack>
       )}
+
     </div>
   )
 }
